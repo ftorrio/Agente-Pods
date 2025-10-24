@@ -468,6 +468,9 @@ def main():
                 help="Nombre de la carpeta en el bucket (ej: IES161108I36)"
             )
             
+            # Límite por defecto
+            max_files = 10
+            
             # Verificar si hay credenciales
             credentials_path = os.path.join('config', 'credentials.json')
             has_credentials = os.path.exists(credentials_path)
