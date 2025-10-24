@@ -552,7 +552,13 @@ def main():
                     if st.button("🔄 Listar PODs por Fecha"):
                         with st.spinner("Listando archivos en la nube..."):
                             from cloud_auth import AuthenticatedCloudReader
-                            reader = AuthenticatedCloudReader(credentials_path)
+                            
+                            # Usar credenciales de Streamlit secrets o archivo local
+                            if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+                                creds_dict = dict(st.secrets['gcp_service_account'])
+                                reader = AuthenticatedCloudReader(credentials_dict=creds_dict)
+                            else:
+                                reader = AuthenticatedCloudReader(credentials_path)
                             
                             # Convertir fechas a string
                             start_str = start_date.strftime('%Y-%m-%d')
