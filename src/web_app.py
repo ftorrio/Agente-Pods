@@ -778,14 +778,24 @@ def main():
         if st.button("📊 Abrir Reportes"):
             reports_dir = os.path.join(config['paths']['output_dir'], 'reportes')
             if os.path.exists(reports_dir):
-                os.startfile(reports_dir)
+                # Solo funciona en Windows local
+                if os.name == 'nt':
+                    os.startfile(reports_dir)
+                    st.success(f"📂 Carpeta abierta: {reports_dir}")
+                else:
+                    st.info(f"📂 Reportes ubicados en: {reports_dir}")
             else:
                 st.warning("No hay reportes generados aún")
         
         if st.button("🖼️ Ver Imágenes"):
             images_dir = os.path.join(config['paths']['output_dir'], 'imagenes_anotadas')
             if os.path.exists(images_dir):
-                os.startfile(images_dir)
+                # Solo funciona en Windows local
+                if os.name == 'nt':
+                    os.startfile(images_dir)
+                    st.success(f"📂 Carpeta abierta: {images_dir}")
+                else:
+                    st.info(f"📂 Imágenes ubicadas en: {images_dir}")
             else:
                 st.warning("No hay imágenes anotadas aún")
         
