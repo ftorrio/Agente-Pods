@@ -37,6 +37,20 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+# Logo de Ingetek en la parte superior izquierda
+logo_path = "assets/logo_ingetek.png"
+if os.path.exists(logo_path):
+    # Si existe el logo, mostrarlo
+    st.logo(logo_path, link="https://www.ingetek.com")
+else:
+    # Si no existe, mostrar texto estilizado
+    st.markdown("""
+        <div style="padding: 10px; text-align: left;">
+            <h2 style="color: #0066cc; margin: 0; font-size: 24px; font-weight: bold;">INGETEK</h2>
+            <p style="color: #666; margin: 0; font-size: 12px;">Proof of Delivery System</p>
+        </div>
+    """, unsafe_allow_html=True)
+
 # CSS personalizado
 st.markdown("""
     <style>
