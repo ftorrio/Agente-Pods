@@ -37,17 +37,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Logo de Ingetek en la parte superior izquierda
+# Logo de Ingetek en la parte superior (compatible con todas las versiones de Streamlit)
 logo_path = "assets/logo-ingetek.png"
 if os.path.exists(logo_path):
-    # Si existe el logo, mostrarlo
-    st.logo(logo_path, link="https://www.ingetek.com")
+    # Si existe el logo, mostrarlo con HTML para posicionarlo arriba
+    import base64
+    with open(logo_path, "rb") as img_file:
+        img_data = base64.b64encode(img_file.read()).decode()
+    
+    st.markdown(f"""
+        <div style="padding: 10px 0px; text-align: left;">
+            <a href="https://www.ingetek.com" target="_blank">
+                <img src="data:image/png;base64,{img_data}" width="150" alt="Ingetek Logo">
+            </a>
+        </div>
+    """, unsafe_allow_html=True)
 else:
     # Si no existe, mostrar texto estilizado
     st.markdown("""
         <div style="padding: 10px; text-align: left;">
-            <h2 style="color: #0066cc; margin: 0; font-size: 24px; font-weight: bold;">INGETEK</h2>
-            <p style="color: #666; margin: 0; font-size: 12px;">Proof of Delivery System</p>
+            <a href="https://www.ingetek.com" target="_blank" style="text-decoration: none;">
+                <h2 style="color: #0066cc; margin: 0; font-size: 24px; font-weight: bold;">INGETEK</h2>
+                <p style="color: #666; margin: 0; font-size: 12px;">Proof of Delivery System</p>
+            </a>
         </div>
     """, unsafe_allow_html=True)
 
