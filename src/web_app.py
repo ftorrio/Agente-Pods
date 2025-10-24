@@ -631,7 +631,7 @@ def main():
                     st.error(f"🛑 LISTA TIENE {len(filenames)} ARCHIVOS - SE USARÁN SOLO {max_files}")
                     filenames = filenames[:max_files]
                 
-                st.success(f"✅ {len(filenames)} archivo(s) listos para procesar")
+                st.success(f"✅ {len(filenames)} archivo(s) en la lista (se descargarán al procesar)")
                 
                 # Guardar en session_state
                 st.session_state.cloud_folder = folder
@@ -696,6 +696,8 @@ def main():
                 import tempfile
                 temp_dir = tempfile.mkdtemp(prefix="pods_web_")
                 
+                failed_downloads = []
+                
                 for idx, filename in enumerate(filenames, 1):
                     progress_bar.progress((idx - 0.5) / len(filenames) / 2)  # 0-50% para descarga
                     status_text.text(f"📥 Descargando {idx}/{len(filenames)}: {filename}")
@@ -712,9 +714,20 @@ def main():
                     if local_path:
                         files_to_process.append(local_path)
                     else:
+                        failed_downloads.append(filename)
                         st.warning(f"⚠️ No se pudo descargar: {filename}")
                 
-                st.info(f"📥 Descargados {len(files_to_process)}/{len(filenames)} archivos")
+                # Mostrar resumen de descarga
+                if failed_downloads:
+                    st.error(f"❌ {len(failed_downloads)} archivos NO descargados de {len(filenames)}")
+                    with st.expander("🔍 Ver archivos que fallaron"):
+                        for failed_file in failed_downloads:
+                            st.text(f"  • {failed_file}")
+                
+                if files_to_process:
+                    st.success(f"✅ Descargados exitosamente: {len(files_to_process)}/{len(filenames)} archivos")
+                else:
+                    st.error("❌ No se pudo descargar ningún archivo")
             else:
                 # Usar archivos locales
                 files_to_process = files
