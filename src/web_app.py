@@ -38,7 +38,7 @@ st.set_page_config(
 )
 
 # Logo de Ingetek en la parte superior izquierda
-logo_path = "assets/logo_ingetek.png"
+logo_path = "assets/logo-ingetek.png"
 if os.path.exists(logo_path):
     # Si existe el logo, mostrarlo
     st.logo(logo_path, link="https://www.ingetek.com")
