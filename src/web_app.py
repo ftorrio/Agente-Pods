@@ -487,9 +487,18 @@ def main():
             # Límite por defecto
             max_files = 10
             
-            # Verificar si hay credenciales
+            # Verificar si hay credenciales (local o Streamlit Cloud)
             credentials_path = os.path.join('config', 'credentials.json')
             has_credentials = os.path.exists(credentials_path)
+            
+            # Verificar también si hay secretos en Streamlit Cloud
+            streamlit_secrets_available = False
+            try:
+                if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+                    streamlit_secrets_available = True
+                    has_credentials = True
+            except:
+                pass
             
             if has_credentials:
                 st.success("✅ Credenciales encontradas - Listado automático habilitado")
@@ -664,7 +673,14 @@ def main():
                     st.error(f"🛑 Se encontraron {len(filenames)} archivos - PROCESANDO SOLO {LIMITE_SEGURIDAD}")
                     filenames = filenames[:LIMITE_SEGURIDAD]
                 
-                if os.path.exists(credentials_path):
+                # Crear cliente autenticado
+                if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+                    # Usar secretos de Streamlit Cloud
+                    from cloud_auth import AuthenticatedCloudReader
+                    creds_dict = dict(st.secrets['gcp_service_account'])
+                    cloud_reader = AuthenticatedCloudReader(credentials_dict=creds_dict)
+                elif os.path.exists(credentials_path):
+                    # Usar archivo local
                     from cloud_auth import AuthenticatedCloudReader
                     cloud_reader = AuthenticatedCloudReader(credentials_path)
                 else:

@@ -14,17 +14,25 @@ class AuthenticatedCloudReader:
     Lector autenticado para Google Cloud Storage
     """
     
-    def __init__(self, credentials_path: str = None):
+    def __init__(self, credentials_path: str = None, credentials_dict: dict = None):
         """
         Inicializa el lector autenticado
         
         Args:
             credentials_path: Ruta al archivo JSON de credenciales
+            credentials_dict: Diccionario con credenciales (para Streamlit Cloud)
         """
         self.credentials_path = credentials_path
         self.client = None
         
-        if credentials_path and os.path.exists(credentials_path):
+        # Opción 1: Desde diccionario (Streamlit secrets)
+        if credentials_dict:
+            from google.oauth2 import service_account
+            credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+            self.client = storage.Client(credentials=credentials, project=credentials_dict.get('project_id'))
+            logger.info("Cliente autenticado con credenciales de Streamlit secrets")
+        # Opción 2: Desde archivo local
+        elif credentials_path and os.path.exists(credentials_path):
             os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
             self.client = storage.Client()
             logger.info(f"Cliente autenticado inicializado con: {credentials_path}")
