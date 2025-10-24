@@ -258,6 +258,257 @@ RAZÓN: [breve explicación]
         except Exception as e:
             logger.error(f"Error clasificando con Gemini: {e}")
             return {'enabled': True, 'error': str(e)}
+    
+    def analyze_critical_annotations(self, image_path: str) -> Dict[str, Any]:
+        """
+        Analiza SOLO anotaciones manuscritas críticas
+        Más rápido y económico que análisis completo
+        """
+        if not self.enabled:
+            return {'enabled': False}
+        
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+            
+            prompt = """
+Ignora todo el texto IMPRESO del documento.
+
+Enfócate SOLO en texto MANUSCRITO (escrito a mano):
+
+¿Hay anotaciones manuscritas?
+- Si NO: Responde "Sin anotaciones manuscritas"
+- Si SÍ: 
+  * Transcribe EXACTAMENTE lo que dice
+  * Sentimiento: POSITIVO (confirma/acepta) / NEGATIVO (reclama/rechaza) / NEUTRAL
+  * Urgencia: URGENTE / NORMAL / INFO
+  * Resumen: [breve descripción de 1 línea]
+
+Formato:
+MANUSCRITO: [SÍ/NO]
+TEXTO: [transcripción exacta]
+SENTIMIENTO: [POSITIVO/NEGATIVO/NEUTRAL]
+URGENCIA: [URGENTE/NORMAL/INFO]
+RESUMEN: [descripción breve]
+            """
+            
+            response = self.model.generate_content([prompt, image_data])
+            text_response = response.text.lower()
+            
+            result = {
+                'enabled': True,
+                'raw_response': response.text,
+                'has_annotations': 'sin anotaciones' not in text_response,
+                'sentiment': 'neutral',
+                'urgency': 'normal',
+                'transcription': ''
+            }
+            
+            # Parsear respuesta
+            if result['has_annotations']:
+                if 'negativo' in text_response or 'reclama' in text_response:
+                    result['sentiment'] = 'negative'
+                elif 'positivo' in text_response or 'acepta' in text_response or 'conforme' in text_response:
+                    result['sentiment'] = 'positive'
+                
+                if 'urgente' in text_response:
+                    result['urgency'] = 'urgent'
+                
+                # Extraer transcripción
+                lines = response.text.split('\n')
+                for line in lines:
+                    if 'TEXTO:' in line.upper():
+                        result['transcription'] = line.split(':', 1)[1].strip()
+                        break
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error analizando manuscritos: {e}")
+            return {'enabled': True, 'error': str(e)}
+    
+    def validate_signature_authenticity(self, image_path: str) -> Dict[str, Any]:
+        """
+        Valida si la firma es manuscrita real o sello/impresión
+        """
+        if not self.enabled:
+            return {'enabled': False}
+        
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+            
+            prompt = """
+Enfócate SOLO en la FIRMA del documento (usualmente abajo).
+
+Clasifica la firma como:
+1. MANUSCRITA REAL - Trazos únicos, variaciones naturales, presión visible
+2. SELLO/IMPRESIÓN - Perfectamente uniforme, repetible, sin variaciones
+3. FIRMA DIGITAL - Muy limpia, sin variaciones, perfecta
+4. NO HAY FIRMA - No se ve ninguna firma
+
+Responde en formato:
+TIPO: [1/2/3/4]
+CONFIANZA: [ALTA/MEDIA/BAJA]
+EXPLICACIÓN: [breve razón de por qué]
+UBICACIÓN: [donde está la firma]
+            """
+            
+            response = self.model.generate_content([prompt, image_data])
+            text_response = response.text
+            
+            result = {
+                'enabled': True,
+                'raw_response': text_response,
+                'is_authentic': False,
+                'signature_type': 'unknown',
+                'confidence': 'low'
+            }
+            
+            # Parsear tipo
+            if 'TIPO: 1' in text_response or 'MANUSCRITA REAL' in text_response.upper():
+                result['is_authentic'] = True
+                result['signature_type'] = 'handwritten'
+            elif 'TIPO: 2' in text_response or 'SELLO' in text_response.upper():
+                result['signature_type'] = 'stamp'
+            elif 'TIPO: 3' in text_response or 'DIGITAL' in text_response.upper():
+                result['signature_type'] = 'digital'
+            elif 'TIPO: 4' in text_response or 'NO HAY' in text_response.upper():
+                result['signature_type'] = 'none'
+            
+            # Parsear confianza
+            if 'ALTA' in text_response.upper():
+                result['confidence'] = 'high'
+            elif 'MEDIA' in text_response.upper():
+                result['confidence'] = 'medium'
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error validando firma: {e}")
+            return {'enabled': True, 'error': str(e)}
+    
+    def extract_key_fields(self, image_path: str) -> Dict[str, Any]:
+        """
+        Extrae campos clave específicos del POD
+        """
+        if not self.enabled:
+            return {'enabled': False}
+        
+        try:
+            with open(image_path, 'rb') as f:
+                image_data = f.read()
+            
+            prompt = """
+Extrae SOLO estos campos del POD:
+
+1. Número de Factura: [________]
+2. Cliente/Razón Social: [________]
+3. Número de Pedido: [________]
+4. Fecha de Entrega: [________]
+5. Productos principales: [________]
+6. Cantidad/Peso: [________]
+7. Dirección de entrega: [________]
+
+Si un campo NO está visible, pon: "No visible"
+
+Responde en formato de lista numerada exactamente como arriba.
+            """
+            
+            response = self.model.generate_content([prompt, image_data])
+            
+            result = {
+                'enabled': True,
+                'raw_response': response.text,
+                'fields': {
+                    'invoice_number': '',
+                    'client_name': '',
+                    'order_number': '',
+                    'delivery_date': '',
+                    'products': '',
+                    'quantity': '',
+                    'address': ''
+                }
+            }
+            
+            # Parsear campos
+            lines = response.text.split('\n')
+            for line in lines:
+                if 'Factura:' in line or '1.' in line:
+                    result['fields']['invoice_number'] = line.split(':', 1)[1].strip() if ':' in line else ''
+                elif 'Cliente' in line or 'Razón Social' in line or '2.' in line:
+                    result['fields']['client_name'] = line.split(':', 1)[1].strip() if ':' in line else ''
+                elif 'Pedido' in line or '3.' in line:
+                    result['fields']['order_number'] = line.split(':', 1)[1].strip() if ':' in line else ''
+                elif 'Fecha' in line or '4.' in line:
+                    result['fields']['delivery_date'] = line.split(':', 1)[1].strip() if ':' in line else ''
+                elif 'Productos' in line or '5.' in line:
+                    result['fields']['products'] = line.split(':', 1)[1].strip() if ':' in line else ''
+                elif 'Cantidad' in line or 'Peso' in line or '6.' in line:
+                    result['fields']['quantity'] = line.split(':', 1)[1].strip() if ':' in line else ''
+                elif 'Dirección' in line or '7.' in line:
+                    result['fields']['address'] = line.split(':', 1)[1].strip() if ':' in line else ''
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error extrayendo campos: {e}")
+            return {'enabled': True, 'error': str(e)}
+    
+    def compare_pods(self, image_path1: str, image_path2: str) -> Dict[str, Any]:
+        """
+        Compara dos PODs para detectar duplicados o alteraciones
+        """
+        if not self.enabled:
+            return {'enabled': False}
+        
+        try:
+            with open(image_path1, 'rb') as f1:
+                image_data1 = f1.read()
+            with open(image_path2, 'rb') as f2:
+                image_data2 = f2.read()
+            
+            prompt = """
+Compara estas dos imágenes de PODs:
+
+¿Son el MISMO documento? (SÍ/NO)
+
+Si SÍ son el mismo:
+- ¿Hay modificaciones o alteraciones? (SÍ/NO)
+- ¿Qué cambió? [describir]
+- Nivel de similitud: [0-100]%
+
+Si NO son el mismo:
+- ¿Son del mismo cliente? (SÍ/NO)
+- ¿Misma fecha de entrega? (SÍ/NO)
+- ¿Mismo número de pedido? (SÍ/NO)
+- Nivel de similitud: [0-100]%
+
+Responde en formato claro y estructurado.
+            """
+            
+            response = self.model.generate_content([prompt, image_data1, image_data2])
+            text_response = response.text.upper()
+            
+            result = {
+                'enabled': True,
+                'raw_response': response.text,
+                'are_same': 'MISMO DOCUMENTO' in text_response or '¿SON EL MISMO' in text_response and 'SÍ' in text_response,
+                'has_modifications': 'MODIFICACIONES' in text_response or 'ALTERACIONES' in text_response,
+                'similarity': 0
+            }
+            
+            # Extraer porcentaje de similitud
+            import re
+            similarity_match = re.search(r'(\d+)%', response.text)
+            if similarity_match:
+                result['similarity'] = int(similarity_match.group(1))
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error comparando PODs: {e}")
+            return {'enabled': True, 'error': str(e)}
 
 
 def get_gemini_api_key_from_config() -> Optional[str]:

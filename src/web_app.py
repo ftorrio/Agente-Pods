@@ -353,7 +353,13 @@ def show_pod_details(result):
         st.metric("Confianza", f"{result['confidence']:.1%}")
     
     # Detalles en tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["✍️ Firmas", "🔖 Sellos", "📝 Anotaciones", "📖 Legibilidad", "⚠️ Problemas"])
+    # Verificar si hay análisis de Gemini
+    has_gemini = any(key.startswith('gemini') for key in result.get('details', {}).keys())
+    
+    if has_gemini:
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(["✍️ Firmas", "🔖 Sellos", "📝 Anotaciones", "📖 Legibilidad", "🤖 Gemini AI", "⚠️ Problemas"])
+    else:
+        tab1, tab2, tab3, tab4, tab5 = st.tabs(["✍️ Firmas", "🔖 Sellos", "📝 Anotaciones", "📖 Legibilidad", "⚠️ Problemas"])
     
     with tab1:
         signatures = result['details'].get('signatures', [])
@@ -407,7 +413,129 @@ def show_pod_details(result):
             else:
                 st.write("Ninguno")
     
-    with tab5:
+    # Tab de Gemini AI (solo si está disponible)
+    if has_gemini:
+        with tab5:
+            st.markdown("### 🤖 Análisis con Inteligencia Artificial")
+            st.caption("Powered by Google Gemini 1.5 Flash")
+            
+            details = result.get('details', {})
+            
+            # Análisis de Manuscritos
+            if 'gemini_manuscripts' in details:
+                manuscripts = details['gemini_manuscripts']
+                st.markdown("#### ✍️ Manuscritos Detectados")
+                
+                if manuscripts.get('has_annotations'):
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        sentiment = manuscripts.get('sentiment', 'neutral')
+                        sentiment_icon = '😊' if sentiment == 'positive' else ('😡' if sentiment == 'negative' else '😐')
+                        st.metric("Sentimiento", f"{sentiment_icon} {sentiment.upper()}")
+                    
+                    with col2:
+                        urgency = manuscripts.get('urgency', 'normal')
+                        urgency_icon = '🔴' if urgency == 'urgent' else '🟢'
+                        st.metric("Urgencia", f"{urgency_icon} {urgency.upper()}")
+                    
+                    with col3:
+                        st.metric("Transcripción", "✅ Disponible")
+                    
+                    st.markdown("**Texto manuscrito:**")
+                    transcription = manuscripts.get('transcription', 'Sin transcripción')
+                    if manuscripts.get('sentiment') == 'negative':
+                        st.error(f"⚠️ {transcription}")
+                    elif manuscripts.get('sentiment') == 'positive':
+                        st.success(f"✅ {transcription}")
+                    else:
+                        st.info(f"📝 {transcription}")
+                else:
+                    st.info("✅ No se detectaron anotaciones manuscritas")
+            
+            st.divider()
+            
+            # Validación de Firma
+            if 'gemini_signature' in details:
+                signature_auth = details['gemini_signature']
+                st.markdown("#### ✍️ Autenticidad de Firma")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    is_authentic = signature_auth.get('is_authentic', False)
+                    if is_authentic:
+                        st.success("✅ **FIRMA AUTÉNTICA**")
+                        st.write("Firma manuscrita real detectada")
+                    else:
+                        sig_type = signature_auth.get('signature_type', 'unknown')
+                        if sig_type == 'stamp':
+                            st.warning("⚠️ **SELLO DETECTADO**")
+                            st.write("No es firma manuscrita del cliente")
+                        elif sig_type == 'digital':
+                            st.warning("⚠️ **FIRMA DIGITAL**")
+                            st.write("Firma generada digitalmente")
+                        elif sig_type == 'none':
+                            st.error("❌ **SIN FIRMA**")
+                            st.write("No se detectó ninguna firma")
+                        else:
+                            st.info("ℹ️ **TIPO DESCONOCIDO**")
+                
+                with col2:
+                    confidence = signature_auth.get('confidence', 'low')
+                    confidence_icon = '🟢' if confidence == 'high' else ('🟡' if confidence == 'medium' else '🔴')
+                    st.metric("Confianza Gemini", f"{confidence_icon} {confidence.upper()}")
+                
+                with st.expander("Ver análisis completo de Gemini"):
+                    st.text(signature_auth.get('raw_response', 'Sin respuesta'))
+            
+            st.divider()
+            
+            # Campos Extraídos
+            if 'gemini_fields' in details:
+                fields = details['gemini_fields'].get('fields', {})
+                st.markdown("#### 📋 Datos Extraídos por Gemini")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write("**Datos del Documento:**")
+                    st.write(f"- **Factura:** {fields.get('invoice_number', 'No visible')}")
+                    st.write(f"- **Pedido:** {fields.get('order_number', 'No visible')}")
+                    st.write(f"- **Fecha:** {fields.get('delivery_date', 'No visible')}")
+                    st.write(f"- **Cantidad:** {fields.get('quantity', 'No visible')}")
+                
+                with col2:
+                    st.write("**Datos del Cliente:**")
+                    st.write(f"- **Cliente:** {fields.get('client_name', 'No visible')}")
+                    st.write(f"- **Productos:** {fields.get('products', 'No visible')}")
+                    st.write(f"- **Dirección:** {fields.get('address', 'No visible')}")
+            
+            st.divider()
+            
+            # Clasificación de Gemini
+            if 'gemini_classification' in details:
+                gem_class = details['gemini_classification']
+                st.markdown("#### 🎯 Clasificación de Gemini")
+                
+                with st.expander("Ver clasificación completa de Gemini", expanded=False):
+                    st.text(gem_class.get('raw_response', 'Sin respuesta'))
+            
+            # Discrepancias
+            if result.get('needs_review'):
+                st.divider()
+                st.error("⚠️ **REQUIERE REVISIÓN MANUAL**")
+                st.write(f"**Razón:** {result.get('review_reason', 'Discrepancia detectada')}")
+                st.info("Gemini y OCR tienen opiniones diferentes sobre este POD")
+        
+        # Tab de problemas (ahora es tab6 si hay Gemini)
+        prob_tab = tab6
+    else:
+        # Tab de problemas (tab5 si NO hay Gemini)
+        prob_tab = tab5
+    
+    # Mostrar problemas y recomendaciones
+    with prob_tab:
         issues = result.get('issues', [])
         recommendations = result.get('recommendations', [])
         

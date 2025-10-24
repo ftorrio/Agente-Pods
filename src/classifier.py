@@ -20,6 +20,14 @@ except ImportError:
     NOTIFICATIONS_AVAILABLE = False
     logger.warning("Sistema de notificaciones no disponible")
 
+# Importar Gemini AI si está disponible
+try:
+    from gemini_analyzer import GeminiPODAnalyzer, get_gemini_api_key_from_config
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    logger.warning("Gemini AI no disponible")
+
 
 class PODClassifier:
     """
@@ -54,6 +62,18 @@ class PODClassifier:
             self.notification_system = NotificationSystem()
         else:
             self.notification_system = None
+        
+        # Inicializar Gemini AI
+        if GEMINI_AVAILABLE:
+            api_key = get_gemini_api_key_from_config()
+            self.gemini_analyzer = GeminiPODAnalyzer(api_key)
+            if self.gemini_analyzer.enabled:
+                logger.info("Gemini AI activado como revisor inteligente")
+            else:
+                self.gemini_analyzer = None
+                logger.warning("Gemini AI no pudo inicializarse (falta API key)")
+        else:
+            self.gemini_analyzer = None
         
         logger.info("Clasificador de PODs inicializado")
     
@@ -187,6 +207,73 @@ class PODClassifier:
         result['issues'].append("Documento sin evidencia de acuse (sin firma, sello o anotaciones)")
         result['recommendations'].append("Solicitar documento con firma o sello del cliente")
         logger.warning(f"Clasificado como SIN ACUSE: {page_data['source_file']}")
+        
+        # ========== GEMINI AI COMO REVISOR INTELIGENTE ==========
+        if self.gemini_analyzer:
+            try:
+                logger.info("Activando Gemini AI como revisor inteligente...")
+                image_path = page_data['source_file']
+                
+                # 1. Análisis de manuscritos críticos (si hay anotaciones o baja confianza)
+                if result['details']['annotations']['detected'] or result['confidence'] < 0.7:
+                    logger.info("Analizando manuscritos con Gemini...")
+                    manuscripts = self.gemini_analyzer.analyze_critical_annotations(image_path)
+                    result['details']['gemini_manuscripts'] = manuscripts
+                    
+                    # Si Gemini detecta reclamación NEGATIVA urgente
+                    if manuscripts.get('has_annotations') and manuscripts.get('sentiment') == 'negative':
+                        if manuscripts.get('urgency') == 'urgent':
+                            result['classification'] = self.classifications['CON_ANOTACIONES']
+                            result['classification_code'] = 'CON_ANOTACIONES'
+                            result['is_valid'] = False
+                            result['issues'].append(f"URGENTE - Reclamación detectada por Gemini: {manuscripts.get('transcription', '')}")
+                            logger.critical(f"Gemini detectó reclamación URGENTE en: {page_data['source_file']}")
+                
+                # 2. Validación de autenticidad de firma (si hay firma detectada)
+                if result['details']['signature']['detected']:
+                    logger.info("Validando autenticidad de firma con Gemini...")
+                    signature_auth = self.gemini_analyzer.validate_signature_authenticity(image_path)
+                    result['details']['gemini_signature'] = signature_auth
+                    
+                    # Si la firma NO es auténtica (es sello o digital)
+                    if not signature_auth.get('is_authentic') and signature_auth.get('signature_type') in ['stamp', 'digital']:
+                        logger.warning(f"Gemini detectó firma no auténtica: {signature_auth.get('signature_type')}")
+                        result['issues'].append(f"Firma detectada como {signature_auth.get('signature_type')} (no manuscrita)")
+                        # Reclasificar si era OK solo por la firma
+                        if result['classification_code'] == 'OK' and not result['details']['stamp']['detected']:
+                            result['classification'] = self.classifications['SIN_ACUSE']
+                            result['classification_code'] = 'SIN_ACUSE'
+                            result['is_valid'] = False
+                            logger.warning("Reclasificado a SIN_ACUSE por firma no auténtica")
+                
+                # 3. Extracción de campos clave (para datos estructurados)
+                logger.info("Extrayendo campos clave con Gemini...")
+                key_fields = self.gemini_analyzer.extract_key_fields(image_path)
+                result['details']['gemini_fields'] = key_fields
+                
+                # 4. Clasificación de Gemini (como segundo opinión)
+                logger.info("Obteniendo clasificación de Gemini...")
+                gemini_classification = self.gemini_analyzer.classify_pod(image_path)
+                result['details']['gemini_classification'] = gemini_classification
+                
+                # Detectar discrepancias entre Tesseract y Gemini
+                if 'classification_text' in gemini_classification:
+                    gemini_class_text = gemini_classification['classification_text'].upper()
+                    if ('OK' in gemini_class_text and result['classification_code'] != 'OK') or \
+                       ('SIN ACUSE' in gemini_class_text and result['classification_code'] == 'OK'):
+                        result['needs_review'] = True
+                        result['review_reason'] = 'Discrepancia entre clasificación OCR y Gemini AI'
+                        logger.warning(f"Discrepancia detectada: OCR={result['classification_code']}, Gemini sugiere revisión")
+                
+                logger.info("Análisis con Gemini completado exitosamente")
+                
+            except Exception as e:
+                logger.error(f"Error en análisis de Gemini: {e}")
+                result['details']['gemini_error'] = str(e)
+        
+        # Generar alertas con sistema de notificaciones
+        if self.notification_system:
+            self.notification_system.check_and_alert(result)
         
         return result
     

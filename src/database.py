@@ -106,6 +106,33 @@ class PODDatabase:
             )
         """)
         
+        # Tabla de análisis Gemini AI
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS gemini_analisis (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pod_id INTEGER NOT NULL,
+                manuscritos_detectados BOOLEAN,
+                manuscritos_texto TEXT,
+                manuscritos_sentimiento TEXT,
+                manuscritos_urgencia TEXT,
+                firma_autentica BOOLEAN,
+                firma_tipo TEXT,
+                firma_confianza TEXT,
+                factura TEXT,
+                cliente TEXT,
+                pedido TEXT,
+                fecha_entrega TEXT,
+                productos TEXT,
+                cantidad TEXT,
+                direccion TEXT,
+                clasificacion_gemini TEXT,
+                necesita_revision BOOLEAN,
+                razon_revision TEXT,
+                fecha_analisis TEXT NOT NULL,
+                FOREIGN KEY (pod_id) REFERENCES pods(id)
+            )
+        """)
+        
         # Índices para búsquedas rápidas
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_pod_nombre ON pods(nombre_archivo)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_clasificacion ON resultados(codigo_clasificacion)")
@@ -188,6 +215,45 @@ class PODDatabase:
                 details.get('is_blurry', False),
                 details.get('is_complete', True)
             ))
+            
+            # Guardar análisis de Gemini AI (si existe)
+            if 'gemini_manuscripts' in details or 'gemini_signature' in details or 'gemini_fields' in details:
+                gemini_manuscripts = details.get('gemini_manuscripts', {})
+                gemini_signature = details.get('gemini_signature', {})
+                gemini_fields = details.get('gemini_fields', {}).get('fields', {})
+                
+                cursor.execute("""
+                    INSERT INTO gemini_analisis (
+                        pod_id, manuscritos_detectados, manuscritos_texto, 
+                        manuscritos_sentimiento, manuscritos_urgencia,
+                        firma_autentica, firma_tipo, firma_confianza,
+                        factura, cliente, pedido, fecha_entrega,
+                        productos, cantidad, direccion,
+                        clasificacion_gemini, necesita_revision, razon_revision,
+                        fecha_analisis
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    pod_id,
+                    gemini_manuscripts.get('has_annotations', False),
+                    gemini_manuscripts.get('transcription', ''),
+                    gemini_manuscripts.get('sentiment', 'neutral'),
+                    gemini_manuscripts.get('urgency', 'normal'),
+                    gemini_signature.get('is_authentic', False),
+                    gemini_signature.get('signature_type', 'unknown'),
+                    gemini_signature.get('confidence', 'low'),
+                    gemini_fields.get('invoice_number', ''),
+                    gemini_fields.get('client_name', ''),
+                    gemini_fields.get('order_number', ''),
+                    gemini_fields.get('delivery_date', ''),
+                    gemini_fields.get('products', ''),
+                    gemini_fields.get('quantity', ''),
+                    gemini_fields.get('address', ''),
+                    details.get('gemini_classification', {}).get('classification_text', ''),
+                    result.get('needs_review', False),
+                    result.get('review_reason', ''),
+                    datetime.now().isoformat()
+                ))
+                logger.info(f"Análisis Gemini guardado en BD para POD ID: {pod_id}")
             
             self.conn.commit()
             return pod_id
