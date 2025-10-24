@@ -21,6 +21,13 @@ from main import PODValidationSystem
 from utils import load_config, get_files_from_directory
 from cloud_storage import CloudStorageReader, KNOWN_PODS_IES161108I36
 
+# Importar datos de demo
+try:
+    from demo_data import get_demo_results, get_demo_statistics
+    DEMO_AVAILABLE = True
+except ImportError:
+    DEMO_AVAILABLE = False
+
 
 # Configuración de la página
 st.set_page_config(
@@ -407,6 +414,15 @@ def main():
     # Encabezado
     st.title("🔍 Sistema de Validación de PODs")
     st.markdown("**Proof of Delivery** - Análisis Automático de Documentos")
+    
+    # Botón de Demo (si está disponible y no hay resultados)
+    if DEMO_AVAILABLE and not st.session_state.results:
+        col1, col2, col3 = st.columns([2, 1, 2])
+        with col2:
+            if st.button("🎬 Ver Demo Interactiva", type="primary", use_container_width=True):
+                st.session_state.results = get_demo_results()
+                st.success("✅ Demo cargada con 5 PODs de ejemplo")
+                st.rerun()
     
     # Panel de Alertas (si hay)
     if st.session_state.alerts:
