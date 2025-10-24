@@ -1,0 +1,123 @@
+# Configuración del Sistema de Validación de PODs
+
+# Rutas de Directorios
+paths:
+  input_dir: "documentos/entrada"
+  output_dir: "resultados"
+  processed_dir: "documentos/procesados"
+  examples_dir: "documentos/ejemplos"
+
+# Configuración de OCR
+ocr:
+  language: "spa"  # Español - idioma instalado
+  oem: 3          # OCR Engine Mode (3 = Default)
+  psm: 6          # Page Segmentation Mode (6 = Uniform block of text)
+  min_confidence: 60  # Confianza mínima para considerar texto válido
+
+# Umbrales de Detección
+thresholds:
+  # Legibilidad
+  min_text_quality: 0.6       # Calidad mínima de texto (0-1)
+  min_fields_detected: 3      # Mínimo de campos requeridos detectados
+  blur_threshold: 100         # Umbral para detectar imágenes borrosas
+  
+  # Firmas
+  signature_min_area: 500     # Área mínima en píxeles para firma
+  signature_max_area: 50000   # Área máxima en píxeles para firma
+  signature_confidence: 0.7   # Confianza mínima para firma
+  
+  # Sellos
+  stamp_min_area: 1000        # Área mínima para sello
+  stamp_max_area: 100000      # Área máxima para sello
+  stamp_circularity: 0.6      # Circularidad mínima para sello
+  
+  # Anotaciones
+  handwriting_confidence: 0.65  # Confianza para detectar escritura a mano
+
+# Campos Requeridos en POD
+required_fields:
+  - "factura"
+  - "cliente"
+  - "pedido"
+  - "producto"
+  - "firma"
+
+# Zonas de Interés (según Guía Agente)
+# Coordenadas relativas (porcentaje del ancho/alto de la imagen)
+zones:
+  zone_6:  # Zona 6 - Firma cliente
+    x_start: 0.0
+    x_end: 0.33
+    y_start: 0.75
+    y_end: 1.0
+  
+  zone_7:  # Zona 7 - Firma cliente
+    x_start: 0.33
+    x_end: 0.66
+    y_start: 0.75
+    y_end: 1.0
+  
+  zone_8:  # Zona 8 - Firma cliente
+    x_start: 0.66
+    x_end: 1.0
+    y_start: 0.75
+    y_end: 1.0
+
+# Sellos NO Válidos (rechazar si se detectan estos)
+invalid_stamps:
+  - "deacero"
+  - "ingetek"
+
+# Palabras Clave para Anotaciones
+annotation_keywords:
+  positive:  # Confirman recepción
+    - "recibido"
+    - "conforme"
+    - "ok"
+    - "correcto"
+    - "aceptado"
+    - "de acuerdo"
+  
+  negative:  # Posible reclamación
+    - "reclamación"
+    - "reclamo"
+    - "dañado"
+    - "incompleto"
+    - "falta"
+    - "error"
+    - "no conforme"
+    - "devolver"
+
+# Clasificaciones
+classifications:
+  POCO_LEGIBLE: "Poco Legible"
+  SIN_ACUSE: "Sin Acuse"
+  INCORRECTO: "Incorrecto"
+  CON_ANOTACIONES: "Con Anotaciones"
+  OK: "OK"
+
+# Formatos de Archivo Soportados
+supported_formats:
+  - ".pdf"
+  - ".gif"
+  - ".png"
+  - ".jpg"
+  - ".jpeg"
+  - ".tif"
+  - ".tiff"
+  - ".bmp"
+
+# Configuración de Salida
+output:
+  save_annotated_images: true    # Guardar imágenes con anotaciones
+  generate_excel_report: true    # Generar reporte Excel
+  generate_csv_report: true      # Generar reporte CSV
+  verbose_logging: true          # Logging detallado
+  
+# Procesamiento de Imágenes
+image_processing:
+  max_dimension: 3000           # Redimensionar si es mayor
+  dpi: 300                      # DPI para conversión PDF
+  enhance_contrast: true        # Mejorar contraste
+  denoise: true                 # Reducir ruido
+

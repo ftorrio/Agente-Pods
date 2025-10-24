@@ -1,0 +1,44 @@
+# Procesamiento de Imágenes y PDFs
+opencv-python==4.8.1.78
+opencv-contrib-python==4.8.1.78
+Pillow==10.1.0
+pdf2image==1.16.3
+numpy==1.24.3
+
+# OCR (Reconocimiento de Texto)
+pytesseract==0.3.10
+
+# Detección y Análisis
+scikit-image==0.22.0
+scipy==1.11.4
+
+# Manipulación de Datos
+pandas==2.1.4
+openpyxl==3.1.2
+
+# Configuración
+PyYAML==6.0.1
+
+# Utilidades
+tqdm==4.66.1
+colorama==0.4.6
+
+# Logging
+loguru==0.7.2
+
+# Interfaz Web
+streamlit==1.29.0
+plotly==5.18.0
+
+# Cloud Storage
+requests==2.32.3
+google-cloud-storage==2.14.0
+
+# Gemini AI
+google-generativeai==0.3.2
+
+# Opcional: Machine Learning (para mejoras futuras)
+# tensorflow==2.15.0
+# torch==2.1.0
+# torchvision==0.16.0
+

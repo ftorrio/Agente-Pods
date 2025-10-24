@@ -1,0 +1,27 @@
+{
+  "enabled": true,
+  "email": {
+    "enabled": false,
+    "smtp_server": "smtp.gmail.com",
+    "smtp_port": 587,
+    "sender_email": "tu-email@gmail.com",
+    "sender_password": "tu-contraseña-app",
+    "recipients": [
+      "supervisor@tuempresa.com"
+    ]
+  },
+  "alerts": {
+    "negative_annotations": true,
+    "sin_acuse_threshold": 10,
+    "poco_legible_threshold": 20,
+    "incorrecto_threshold": 15,
+    "processing_complete": true
+  },
+  "alert_levels": {
+    "HIGH": ["negative_annotations"],
+    "MEDIUM": ["sin_acuse", "incorrecto"],
+    "LOW": ["processing_complete"]
+  }
+}
+
+

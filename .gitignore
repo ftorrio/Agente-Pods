@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Documentos y resultados (comentar si quieres versionar ejemplos)
+documentos/entrada/*
+documentos/procesados/*
+!documentos/entrada/.gitkeep
+!documentos/procesados/.gitkeep
+resultados/*
+!resultados/.gitkeep
+logs/*
+!logs/.gitkeep
+
+# Archivos sensibles - NO subir a GitHub
+config/credentials.json
+config/gemini_api_key.txt
+database/
+*.db
+
+# Archivos temporales
+*.tmp
+test_*.py
+verificar_*.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pytest
+.pytest_cache/
+
+# Coverage
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# Environments
+.env
+.venv
+
+# Temporal
+*.tmp
+*.bak
+*.log
+
