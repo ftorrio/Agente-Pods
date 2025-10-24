@@ -529,6 +529,95 @@ def main():
             if has_credentials:
                 st.success("✅ Credenciales encontradas - Listado automático habilitado")
                 
+                st.divider()
+                
+                # BÚSQUEDA RÁPIDA de PODs específicos
+                st.markdown("### 🔎 Búsqueda Rápida")
+                st.caption("Busca uno o varios PODs específicos")
+                
+                search_query = st.text_input(
+                    "Buscar POD(s):",
+                    placeholder="Ej: QC8261, QM2015, 1024008261  (separados por coma)",
+                    help="Busca por número de POD, factura, o nombre. Puedes buscar varios separados por coma."
+                )
+                
+                col_search1, col_search2 = st.columns(2)
+                
+                with col_search1:
+                    search_button = st.button("🔍 Buscar", type="primary", disabled=not search_query)
+                
+                with col_search2:
+                    auto_process = st.checkbox("▶️ Procesar automáticamente", value=False, help="Procesar inmediatamente después de encontrar")
+                
+                if search_button:
+                    with st.spinner(f"🔎 Buscando '{search_query}' en la nube..."):
+                        from cloud_auth import AuthenticatedCloudReader
+                        
+                        # Usar credenciales de Streamlit secrets o archivo local
+                        if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
+                            creds_dict = dict(st.secrets['gcp_service_account'])
+                            reader = AuthenticatedCloudReader(credentials_dict=creds_dict)
+                        else:
+                            reader = AuthenticatedCloudReader(credentials_path)
+                        
+                        # Buscar en el bucket
+                        try:
+                            all_files = reader.list_blobs_in_folder('dea-documents-das', f'pod/{folder}/')
+                            
+                            # Separar múltiples términos de búsqueda por coma
+                            search_terms = [term.strip() for term in search_query.split(',') if term.strip()]
+                            
+                            # Filtrar por términos de búsqueda (coincidencia con cualquier término)
+                            matching_files = []
+                            for file in all_files:
+                                for term in search_terms:
+                                    if term.lower() in file.lower():
+                                        if file not in matching_files:  # Evitar duplicados
+                                            matching_files.append(file)
+                                        break
+                            
+                            if matching_files:
+                                st.success(f"✅ Encontrados {len(matching_files)} POD(s) que coinciden con tu búsqueda")
+                                
+                                # Mostrar lista de coincidencias
+                                with st.expander("📋 PODs encontrados", expanded=True):
+                                    for idx, f in enumerate(matching_files[:20], 1):  # Mostrar max 20
+                                        st.text(f"{idx}. {f}")
+                                    if len(matching_files) > 20:
+                                        st.caption(f"... y {len(matching_files) - 20} más")
+                                
+                                # Guardar en session state para procesar
+                                st.session_state.cloud_filenames = matching_files[:20]  # Máximo 20
+                                st.session_state.cloud_folder = folder
+                                
+                                if len(matching_files) > 20:
+                                    st.warning(f"⚠️ Se encontraron {len(matching_files)} PODs. Se procesarán los primeros 20.")
+                                
+                                # Si auto_process está activado, procesar inmediatamente
+                                if auto_process:
+                                    st.success("🚀 Iniciando procesamiento automático...")
+                                    st.session_state.auto_process_trigger = True
+                                    st.rerun()
+                                else:
+                                    st.info("✅ PODs listos. Haz scroll abajo y haz clic en '▶️ Procesar PODs'")
+                            else:
+                                st.warning(f"❌ No se encontraron PODs con: {', '.join(search_terms)}")
+                                st.info(f"💡 Buscando en carpeta: pod/{folder}/")
+                                st.info("💡 Verifica el nombre o intenta con menos caracteres")
+                                
+                                # Sugerencias
+                                if len(all_files) > 0:
+                                    st.info(f"📁 La carpeta contiene {len(all_files)} archivos en total")
+                                    with st.expander("Ver ejemplos de nombres en la carpeta"):
+                                        for f in all_files[:10]:
+                                            st.text(f"  • {f}")
+                        
+                        except Exception as e:
+                            st.error(f"❌ Error en búsqueda: {str(e)}")
+                            st.info("💡 Verifica que la carpeta sea correcta")
+                
+                st.divider()
+                
                 # Filtro por fechas
                 st.markdown("**📅 Filtrar por Fecha de Creación:**")
                 
