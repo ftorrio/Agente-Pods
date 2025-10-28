@@ -103,6 +103,7 @@ supported_formats:
   - ".png"
   - ".jpg"
   - ".jpeg"
+  - ".jfif"  # Formato JPEG File Interchange Format
   - ".tif"
   - ".tiff"
   - ".bmp"
