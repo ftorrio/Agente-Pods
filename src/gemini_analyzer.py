@@ -16,23 +16,35 @@ class GeminiPODAnalyzer:
     Analizador de PODs usando Google Gemini
     """
     
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, use_pro: bool = False):
         """
         Inicializa el analizador Gemini
         
         Args:
             api_key: API key de Google Gemini
+            use_pro: Usar Gemini Pro en lugar de Flash (más preciso, más caro)
         """
         self.api_key = api_key or os.getenv('GEMINI_API_KEY')
         
         if self.api_key:
             genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-1.5-flash')
-            logger.info("Gemini AI inicializado correctamente")
+            
+            # Seleccionar modelo según configuración
+            if use_pro:
+                self.model = genai.GenerativeModel('gemini-1.5-pro')
+                self.model_name = 'Gemini 1.5 Pro'
+                logger.info("Gemini 1.5 PRO inicializado (máxima precisión)")
+            else:
+                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                self.model_name = 'Gemini 1.5 Flash'
+                logger.info("Gemini 1.5 Flash inicializado correctamente")
+            
             self.enabled = True
+            self.use_pro = use_pro
         else:
             logger.warning("Gemini API key no encontrada - modo deshabilitado")
             self.enabled = False
+            self.use_pro = False
     
     def analyze_pod_image(self, image_path: str) -> Dict[str, Any]:
         """
