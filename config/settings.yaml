@@ -121,4 +121,9 @@ image_processing:
   dpi: 300                      # DPI para conversión PDF
   enhance_contrast: true        # Mejorar contraste
   denoise: true                 # Reducir ruido
+  enhancement_level: "high"     # Nivel de mejora: basic, medium, high, ultra
+  # basic: Solo orientación (rápido)
+  # medium: + Contraste y ruido (balanceado)
+  # high: + Iluminación, nitidez, sombras (recomendado)
+  # ultra: + Perspectiva, upscaling, bordes (máxima calidad, más lento)
 

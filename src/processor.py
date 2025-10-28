@@ -153,9 +153,12 @@ class DocumentProcessor:
         
         # Preprocesar imagen con mejorador avanzado (si está disponible)
         if self.image_enhancer:
+            # Obtener nivel de mejora de configuración
+            enhancement_level = self.config.get('image_processing', {}).get('enhancement_level', 'high')
+            
             # Usar mejorador avanzado (mejor calidad)
-            logger.debug("Aplicando mejoras avanzadas de imagen...")
-            processed_image = self.image_enhancer.enhance_pod_image(image.copy())
+            logger.debug(f"Aplicando mejoras avanzadas (nivel: {enhancement_level})...")
+            processed_image = self.image_enhancer.enhance_pod_image(image.copy(), level=enhancement_level)
         else:
             # Usar preprocesamiento básico
             processed_image = preprocess_image(
