@@ -1,0 +1,29 @@
+# Requisitos adicionales para OCR Híbrido
+# Instalar con: pip install -r requirements_ocr_extended.txt
+
+# OCR Engines adicionales
+easyocr>=1.7.0                    # OCR con deep learning (excelente manuscritos)
+paddleocr>=2.7.0                  # OCR rápido de PaddlePaddle
+paddlepaddle>=2.5.0               # Framework para PaddleOCR
+
+# Transformers (para TrOCR - estado del arte)
+transformers>=4.30.0              # Microsoft TrOCR
+torch>=2.0.0                      # PyTorch para modelos
+pillow>=10.0.0                    # PIL para procesamiento de imágenes
+
+# Google Cloud Vision (opcional - para cloud OCR)
+google-cloud-vision>=3.4.0        # Google Cloud Vision API
+
+# Dependencias de soporte
+opencv-python>=4.8.0              # Ya lo tienes, pero asegurar versión
+numpy>=1.24.0                     # Ya lo tienes
+scipy>=1.11.0                     # Para análisis numérico
+
+# NOTA: Para GPU (opcional, mucho más rápido):
+# torch-cuda                      # CUDA para PyTorch
+# paddlepaddle-gpu                # PaddleOCR con GPU
+
+# INSTALACIÓN RECOMENDADA:
+# 1. Básico (sin GPU): pip install -r requirements_ocr_extended.txt
+# 2. Con GPU: Instalar CUDA primero, luego versiones GPU de torch y paddle
+
