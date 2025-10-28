@@ -18,6 +18,14 @@ from utils import (
     calculate_blur
 )
 
+# Importar mejorador avanzado de imágenes
+try:
+    from image_enhancer import ImageEnhancer
+    IMAGE_ENHANCEMENT_AVAILABLE = True
+except ImportError:
+    IMAGE_ENHANCEMENT_AVAILABLE = False
+    logger.warning("Módulo de mejora avanzada de imágenes no disponible")
+
 
 class DocumentProcessor:
     """
@@ -37,6 +45,13 @@ class DocumentProcessor:
         self.dpi = config['image_processing']['dpi']
         self.enhance_contrast = config['image_processing']['enhance_contrast']
         self.denoise = config['image_processing']['denoise']
+        
+        # Inicializar mejorador avanzado de imágenes
+        if IMAGE_ENHANCEMENT_AVAILABLE:
+            self.image_enhancer = ImageEnhancer(config)
+            logger.info("Mejorador avanzado de imágenes activado")
+        else:
+            self.image_enhancer = None
         
         logger.info("Procesador de documentos inicializado")
     
@@ -136,12 +151,18 @@ class DocumentProcessor:
         # Calcular calidad de la imagen
         blur_score = calculate_blur(image)
         
-        # Preprocesar imagen
-        processed_image = preprocess_image(
-            image, 
-            self.enhance_contrast, 
-            self.denoise
-        )
+        # Preprocesar imagen con mejorador avanzado (si está disponible)
+        if self.image_enhancer:
+            # Usar mejorador avanzado (mejor calidad)
+            logger.debug("Aplicando mejoras avanzadas de imagen...")
+            processed_image = self.image_enhancer.enhance_pod_image(image.copy())
+        else:
+            # Usar preprocesamiento básico
+            processed_image = preprocess_image(
+                image, 
+                self.enhance_contrast, 
+                self.denoise
+            )
         
         # Crear escala de grises para análisis
         gray_image = cv2.cvtColor(processed_image, cv2.COLOR_BGR2GRAY)
