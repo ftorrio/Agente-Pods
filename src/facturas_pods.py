@@ -112,23 +112,41 @@ def generar_url_pod(nombre_archivo):
     Genera URL del POD en Google Cloud Storage
     
     Lógica: 
-    1. Tomar nombre del archivo (ej: QC8261_1024008261.jpg)
-    2. Extraer caracteres ANTES del _ (ej: QC8261)
-    3. Construir URL completa
+    1. Tomar NombreArchivoPOD (ej: "QC8261_1024008261.jpg" o "QB14620_1023014620.jpg")
+    2. Extraer caracteres ANTES del primer _ (ej: "QC8261" o "QB14620")
+    3. Buscar archivo en GCS que empiece con ese patrón
+    4. Construir URL: https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36/QC8261_1024008261.jpg
     
-    URL base: https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36/
+    Ejemplo:
+    NombreArchivoPOD: "QC8261_1024008261.jpg"
+    Prefijo antes de _: "QC8261"
+    URL: https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36/QC8261_1024008261.jpg
     """
     if not nombre_archivo or pd.isna(nombre_archivo):
         return None
     
-    # Limpiar nombre
-    nombre = str(nombre_archivo).strip()
-    
-    # Construir URL completa
-    base_url = "https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36"
-    url_completa = f"{base_url}/{nombre}"
-    
-    return url_completa
+    try:
+        # Limpiar nombre
+        nombre = str(nombre_archivo).strip()
+        
+        # Extraer prefijo antes del primer _ (ej: "QC8261" de "QC8261_1024008261.jpg")
+        if '_' in nombre:
+            prefijo = nombre.split('_')[0]  # "QC8261"
+            # El nombre completo ya lo tienes, usarlo directamente
+            nombre_archivo_completo = nombre
+        else:
+            # Si no tiene _, usar el nombre tal cual
+            prefijo = nombre
+            nombre_archivo_completo = nombre
+        
+        # Construir URL completa
+        base_url = "https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36"
+        url_completa = f"{base_url}/{nombre_archivo_completo}"
+        
+        return url_completa
+        
+    except Exception as e:
+        return None
 
 
 def ejecutar_query_facturas(fecha_desde, fecha_hasta, cliente='', proyecto='', limite=100):
