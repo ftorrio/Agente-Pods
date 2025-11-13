@@ -59,21 +59,46 @@ with st.sidebar:
 def get_bigquery_client():
     """Obtiene cliente de BigQuery autenticado"""
     try:
+        # Verificar ruta absoluta y relativa
+        credentials_paths = [
+            'config/credentials.json',
+            'config\\credentials.json',
+            os.path.join(os.path.dirname(__file__), '..', 'config', 'credentials.json')
+        ]
+        
+        credentials_file = None
+        for path in credentials_paths:
+            if os.path.exists(path):
+                credentials_file = path
+                break
+        
         # Intentar desde secretos de Streamlit Cloud
         if hasattr(st, 'secrets') and 'gcp_service_account' in st.secrets:
             credentials = service_account.Credentials.from_service_account_info(
                 dict(st.secrets['gcp_service_account'])
             )
-            return bigquery.Client(credentials=credentials, project=st.secrets['gcp_service_account']['project_id'])
+            client = bigquery.Client(credentials=credentials, project=st.secrets['gcp_service_account']['project_id'])
+            st.sidebar.success("✅ Conectado a BigQuery (Streamlit Secrets)")
+            return client
         # Intentar desde archivo local
-        elif os.path.exists('config/credentials.json'):
-            credentials = service_account.Credentials.from_service_account_file('config/credentials.json')
-            return bigquery.Client(credentials=credentials, project='deasol-prj-sandbox')
+        elif credentials_file:
+            credentials = service_account.Credentials.from_service_account_file(credentials_file)
+            # Usar proyecto del archivo de credenciales
+            import json
+            with open(credentials_file, 'r') as f:
+                creds_data = json.load(f)
+                project_id = creds_data.get('project_id', 'dfor-prj-prod')
+            
+            client = bigquery.Client(credentials=credentials, project=project_id)
+            st.sidebar.success(f"✅ Conectado a BigQuery (archivo local)")
+            return client
         else:
-            st.error("❌ No se encontraron credenciales de BigQuery")
+            st.sidebar.error("❌ No se encontraron credenciales de BigQuery")
+            st.sidebar.info(f"Buscado en: {credentials_paths}")
             return None
     except Exception as e:
-        st.error(f"❌ Error conectando a BigQuery: {e}")
+        st.sidebar.error(f"❌ Error conectando a BigQuery: {e}")
+        st.sidebar.exception(e)
         return None
 
 
