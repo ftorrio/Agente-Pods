@@ -59,11 +59,14 @@ with st.sidebar:
 def get_bigquery_client():
     """Obtiene cliente de BigQuery autenticado"""
     try:
-        # Verificar ruta absoluta y relativa
+        # Verificar rutas posibles (config y credential)
         credentials_paths = [
             'config/credentials.json',
             'config\\credentials.json',
-            os.path.join(os.path.dirname(__file__), '..', 'config', 'credentials.json')
+            'credential/deasol-prj-sandbox-99ab62bedd16 (1).json',
+            'credential\\deasol-prj-sandbox-99ab62bedd16 (1).json',
+            os.path.join(os.path.dirname(__file__), '..', 'config', 'credentials.json'),
+            os.path.join(os.path.dirname(__file__), '..', 'credential', 'deasol-prj-sandbox-99ab62bedd16 (1).json')
         ]
         
         credentials_file = None
@@ -87,7 +90,7 @@ def get_bigquery_client():
             import json
             with open(credentials_file, 'r') as f:
                 creds_data = json.load(f)
-                project_id = creds_data.get('project_id', 'dfor-prj-prod')
+                project_id = creds_data.get('project_id', 'deasol-prj-sandbox')  # Usar sandbox por defecto
             
             client = bigquery.Client(credentials=credentials, project=project_id)
             st.sidebar.success(f"✅ Conectado a BigQuery (archivo local)")
@@ -125,9 +128,41 @@ def generar_url_pod(nombre_archivo):
 def ejecutar_query_facturas(fecha_desde, fecha_hasta, cliente='', proyecto='', limite=100):
     """
     Ejecuta la query de facturas con PODs
+    Usando tabla del proyecto deasol-prj-sandbox
     """
     
-    # Query completa (la que proporcionaste)
+    # Query simplificada usando tabla disponible
+    query = f"""
+    SELECT
+        ROW_NUMBER() OVER (ORDER BY fechaFactura) AS consecutivo,
+        fechaFactura,
+        idfacturaAlfanumerico,
+        idFactura,
+        nombreRazonSocial,
+        NomProyecto,
+        impFactura,
+        KilosTOTALFactura,
+        valorEstatus,
+        Tipo,
+        NombreArchivoPOD,
+        Remision
+    FROM `deasol-prj-sandbox.status_03_gold_layer_comercial.Factura_Remision`
+    WHERE CAST(fechaFactura AS DATE) BETWEEN '{fecha_desde}' AND '{fecha_hasta}'
+        {'AND nombreRazonSocial LIKE "%' + cliente + '%"' if cliente else ''}
+        {'AND NomProyecto LIKE "%' + proyecto + '%"' if proyecto else ''}
+    ORDER BY fechaFactura DESC
+    LIMIT {limite}
+    """
+    
+    return query
+
+
+def ejecutar_query_facturas_original(fecha_desde, fecha_hasta, cliente='', proyecto='', limite=100):
+    """
+    Query original completa (para cuando tengas acceso a dfor-prj-prod)
+    """
+    
+    # Query completa original
     query = f"""
     WITH
     -- CTE 1: Datos de Fabricación Detalle
