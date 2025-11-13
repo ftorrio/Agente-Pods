@@ -59,20 +59,22 @@ with st.sidebar:
 def get_bigquery_client():
     """Obtiene cliente de BigQuery autenticado"""
     try:
+        # Obtener directorio base del proyecto
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        
         # Verificar rutas posibles (config y credential)
         credentials_paths = [
+            os.path.join(base_dir, 'config', 'credentials.json'),
+            os.path.join(base_dir, 'credential', 'deasol-prj-sandbox-99ab62bedd16 (1).json'),
             'config/credentials.json',
-            'config\\credentials.json',
-            'credential/deasol-prj-sandbox-99ab62bedd16 (1).json',
-            'credential\\deasol-prj-sandbox-99ab62bedd16 (1).json',
-            os.path.join(os.path.dirname(__file__), '..', 'config', 'credentials.json'),
-            os.path.join(os.path.dirname(__file__), '..', 'credential', 'deasol-prj-sandbox-99ab62bedd16 (1).json')
+            'credential/deasol-prj-sandbox-99ab62bedd16 (1).json'
         ]
         
         credentials_file = None
         for path in credentials_paths:
             if os.path.exists(path):
                 credentials_file = path
+                st.sidebar.info(f"📁 Usando: {os.path.basename(path)}")
                 break
         
         # Intentar desde secretos de Streamlit Cloud
@@ -109,8 +111,12 @@ def generar_url_pod(nombre_archivo):
     """
     Genera URL del POD en Google Cloud Storage
     
-    Lógica: Tomar caracteres antes del primer _ y construir URL
-    Ejemplo: QC8261_1024008261.jpg → https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36/QC8261_1024008261.jpg
+    Lógica: 
+    1. Tomar nombre del archivo (ej: QC8261_1024008261.jpg)
+    2. Extraer caracteres ANTES del _ (ej: QC8261)
+    3. Construir URL completa
+    
+    URL base: https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36/
     """
     if not nombre_archivo or pd.isna(nombre_archivo):
         return None
@@ -118,7 +124,7 @@ def generar_url_pod(nombre_archivo):
     # Limpiar nombre
     nombre = str(nombre_archivo).strip()
     
-    # Construir URL
+    # Construir URL completa
     base_url = "https://storage.cloud.google.com/dea-documents-das/pod/IES161108I36"
     url_completa = f"{base_url}/{nombre}"
     
@@ -131,21 +137,22 @@ def ejecutar_query_facturas(fecha_desde, fecha_hasta, cliente='', proyecto='', l
     Usando tabla del proyecto deasol-prj-sandbox
     """
     
-    # Query simplificada usando tabla disponible
+    # Query simplificada - campos específicos solicitados
     query = f"""
     SELECT
-        ROW_NUMBER() OVER (ORDER BY fechaFactura) AS consecutivo,
-        fechaFactura,
-        idfacturaAlfanumerico,
-        idFactura,
-        nombreRazonSocial,
+        ROW_NUMBER() OVER (ORDER BY fechaFactura DESC) AS consecutivo,
+        ClaProyecto,
         NomProyecto,
-        impFactura,
-        KilosTOTALFactura,
-        valorEstatus,
-        Tipo,
         NombreArchivoPOD,
-        Remision
+        fechaFactura,
+        Remision,
+        kilos_reales,
+        KilosDeRemision,
+        nombreRazonSocial,
+        idfacturaAlfanumerico,
+        -- Campos adicionales útiles
+        impFactura,
+        valorEstatus
     FROM `deasol-prj-sandbox.status_03_gold_layer_comercial.Factura_Remision`
     WHERE CAST(fechaFactura AS DATE) BETWEEN '{fecha_desde}' AND '{fecha_hasta}'
         {'AND nombreRazonSocial LIKE "%' + cliente + '%"' if cliente else ''}
@@ -465,24 +472,49 @@ if 'df_facturas' in st.session_state and not st.session_state.df_facturas.empty:
     # Tabla con link a PODs
     st.subheader("📋 Facturas")
     
-    # Preparar dataframe para mostrar
-    df_display = df[[
+    # Preparar dataframe para mostrar con los campos correctos
+    columnas_mostrar = [
         'consecutivo', 'fechaFactura', 'idfacturaAlfanumerico', 
-        'nombreRazonSocial', 'NomProyecto', 'Tipo', 
-        'impFactura', 'KilosTOTALFactura', 'valorEstatus',
+        'nombreRazonSocial', 'NomProyecto', 'Remision',
+        'impFactura', 'kilos_reales', 'KilosDeRemision', 'valorEstatus',
         'NombreArchivoPOD', 'URL_POD'
-    ]].copy()
-    
-    # Renombrar columnas
-    df_display.columns = [
-        'No.', 'Fecha', 'Factura', 'Cliente', 'Proyecto', 'Tipo',
-        'Importe', 'Kilos', 'Estatus', 'Archivo POD', 'Link POD'
     ]
     
-    # Formatear
-    df_display['Fecha'] = pd.to_datetime(df_display['Fecha']).dt.strftime('%Y-%m-%d')
-    df_display['Importe'] = df_display['Importe'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) else "")
-    df_display['Kilos'] = df_display['Kilos'].apply(lambda x: f"{x:,.0f}" if pd.notna(x) else "")
+    # Verificar qué columnas existen
+    columnas_disponibles = [col for col in columnas_mostrar if col in df.columns]
+    
+    df_display = df[columnas_disponibles].copy()
+    
+    # Renombrar columnas
+    nombres_columnas = {
+        'consecutivo': 'No.',
+        'fechaFactura': 'Fecha',
+        'idfacturaAlfanumerico': 'Factura',
+        'nombreRazonSocial': 'Cliente',
+        'NomProyecto': 'Proyecto',
+        'Remision': 'Remisión',
+        'impFactura': 'Importe',
+        'kilos_reales': 'Kilos Reales',
+        'KilosDeRemision': 'Kilos Remisión',
+        'valorEstatus': 'Estatus',
+        'NombreArchivoPOD': 'Archivo POD',
+        'URL_POD': 'Link POD'
+    }
+    
+    df_display.rename(columns=nombres_columnas, inplace=True)
+    
+    # Formatear fechas y números
+    if 'Fecha' in df_display.columns:
+        df_display['Fecha'] = pd.to_datetime(df_display['Fecha']).dt.strftime('%Y-%m-%d')
+    
+    if 'Importe' in df_display.columns:
+        df_display['Importe'] = df_display['Importe'].apply(lambda x: f"${x:,.2f}" if pd.notna(x) else "")
+    
+    if 'Kilos Reales' in df_display.columns:
+        df_display['Kilos Reales'] = df_display['Kilos Reales'].apply(lambda x: f"{x:,.0f}" if pd.notna(x) else "")
+    
+    if 'Kilos Remisión' in df_display.columns:
+        df_display['Kilos Remisión'] = df_display['Kilos Remisión'].apply(lambda x: f"{x:,.0f}" if pd.notna(x) else "")
     
     # Mostrar tabla con links clickeables
     st.dataframe(
